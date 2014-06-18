@@ -222,11 +222,14 @@ if __name__ == "__main__":
     # Number of collisions we're going to test
     NUM_COLLISION_LOOKUPS = 2000
 
+    # The range of random values to add and test from
+    RANDOM_RANGE = (-4500.00, 4500.00)
+
     # Insert some random objects and time it
     Start = time.time()
     for x in xrange(NUM_TEST_OBJECTS):
         name = "Node__" + str(x)
-        pos = (random.randrange(-4500.000, 4500.000), random.randrange(-4500.00, 4500.00), random.randrange(-4500.00, 4500.00))
+        pos = (random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE))
         testOb = TestObject(name, pos)
         myTree.insertNode(myTree.root, 15000.000, myTree.root, testOb)
     End = time.time() - Start
@@ -240,7 +243,7 @@ if __name__ == "__main__":
     # Look up some random positions and time it
     Start = time.time()
     for x in xrange(NUM_COLLISION_LOOKUPS):
-        pos = (random.randrange(-4500.000, 4500.000), random.randrange(-4500.00, 4500.00), random.randrange(-4500.00, 4500.00))
+        pos = (random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE))
         result = myTree.findPosition(myTree.root, pos)
         
         ##################################################################################
