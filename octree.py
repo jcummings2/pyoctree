@@ -1,4 +1,9 @@
-# python Octree v.1
+#!/usr/bin/python
+"""
+Octree implementation
+"""
+# From: https://code.google.com/p/pynastran/source/browse/trunk/pyNastran/general/octree.py?r=949
+#       http://code.activestate.com/recipes/498121-python-octree-implementation/
 
 # UPDATED:
 # Is now more like a true octree (ie: partitions space containing objects)
@@ -16,7 +21,6 @@
 # Then the cube has to subdivide itself, and arrange its objects in the new child nodes.
 # The new octNode itself contains no objects, but its children should.
 
-# Psyco may well speed this script up considerably, but results seem to vary.
 
 # TODO: Add support for multi-threading for node insertion and/or searching
 
@@ -25,18 +29,8 @@
 # This defines the maximum objects an LeafNode can hold, before it gets subdivided again.
 MAX_OBJECTS_PER_CUBE = 10
 
-# This dictionary is used by the findBranch function, to return the correct branch index
-DIRLOOKUP = {"3":0, "2":1, "-2":2, "-1":3, "1":4, "0":5, "-4":6, "-3":7}
-
 #### End Globals ####
 
-# Try importing psyco, in case it makes any speed difference
-# ( Speed increase seems to vary depending on system ).
-try:
-    import psyco
-    psyco.full()
-except:
-    print "Could not import psyco, speed may suffer :)"
 
 class OctNode(object):
     """
@@ -46,6 +40,13 @@ class OctNode(object):
         """
         OctNode Cubes have a position and size
         position is related to, but not the same as the objects the node contains.
+
+        Branches (or children) follow a predictable pattern to make accesses simple.
+        Here, - means less than 'origin' in that dimension, + means greater than.
+        branch: 0 1 2 3 4 5 6 7
+        x:      - - - - + + + +
+        y:      - - + + - - + +
+        z:      - + - + - + - +
         """
         self.position = position
         self.size = size
@@ -56,16 +57,20 @@ class OctNode(object):
 
         ## store our object, typically this will be one, but maybe more
         self.data = data
-        
+
         ## might as well give it some emtpy branches while we are here.
         self.branches = [None, None, None, None, None, None, None, None]
 
+        half = size / 2
+
         ## The cube's bounding coordinates -- Not currently used
-        self.ldb = (position[0] - (size / 2), position[1] - (size / 2), position[2] - (size / 2))
-        self.ruf = (position[0] + (size / 2), position[1] + (size / 2), position[2] + (size / 2))
-        
+        self.lower = (position[0] - half, position[1] - half, position[2] - half)
+        self.upper = (position[0] + half, position[1] + half, position[2] + half)
 
 class Octree(object):
+    """
+    The octree itself, which is capable of adding and searching for nodes.
+    """
     def __init__(self, worldSize):
         """
         Init the world bounding root cube
@@ -89,32 +94,32 @@ class Octree(object):
             # Find the Real Geometric centre point of our new node:
             # Found from the position of the parent node supplied in the arguments
             pos = parent.position
-            
+
             ## offset is halfway across the size allocated for this node
             offset = size / 2
-            
+
             ## find out which direction we're heading in
             branch = self.findBranch(parent, objData.position)
             
             ## new center = parent position + (branch direction * offset)
-            newCenter = (0,0,0)
+            newCenter = (0, 0, 0)
 
-            if branch == 0: # left down back
+            if branch == 0:
                 newCenter = (pos[0] - offset, pos[1] - offset, pos[2] - offset )
-            elif branch == 1: # left down forwards
+            elif branch == 1:
                 newCenter = (pos[0] - offset, pos[1] - offset, pos[2] + offset )
-            elif branch == 2: # right down forwards
-                newCenter = (pos[0] + offset, pos[1] - offset, pos[2] + offset )
-            elif branch == 3: # right down back
-                newCenter = (pos[0] + offset, pos[1] - offset, pos[2] - offset )
-            elif branch == 4: # left up back
+            elif branch == 2:
                 newCenter = (pos[0] - offset, pos[1] + offset, pos[2] - offset )
-            elif branch == 5: # left up forward
+            elif branch == 3:
                 newCenter = (pos[0] - offset, pos[1] + offset, pos[2] + offset )
-            elif branch == 6: # right up forward
-                newCenter = (pos[0] + offset, pos[1] + offset, pos[2] + offset )
-            elif branch == 7: # right up back
+            elif branch == 4:
+                newCenter = (pos[0] + offset, pos[1] - offset, pos[2] - offset )
+            elif branch == 5:
+                newCenter = (pos[0] + offset, pos[1] - offset, pos[2] + offset )
+            elif branch == 6:
                 newCenter = (pos[0] + offset, pos[1] + offset, pos[2] - offset )
+            elif branch == 7:
+                newCenter = (pos[0] + offset, pos[1] + offset, pos[2] + offset )
 
             # Now we know the centre point of the new node
             # we already know the size as supplied by the parent node
@@ -144,14 +149,14 @@ class Octree(object):
             elif len(root.data) == MAX_OBJECTS_PER_CUBE:
                 # Adding this object to this leaf takes us over the limit
                 # So we have to subdivide the leaf and redistribute the objects
-                # on the new children. 
+                # on the new children.
                 # Add the new object to pre-existing list
                 root.data.append(objData)
                 # copy the list
                 objList = root.data
                 # Clear this node's data
                 root.data = None
-                # Its not a leaf node anymore
+                # It is not a leaf node anymore
                 root.isLeafNode = False
                 # Calculate the size of the new children
                 newSize = root.size / 2
@@ -182,19 +187,14 @@ class Octree(object):
         returns an index corresponding to a branch
         pointing in the direction we want to go
         """
-        vec1 = root.position
-        vec2 = position
-        result = 0
-        # Equation created by adding nodes with known branch directions
-        # into the tree, and comparing results.
-        # See DIRLOOKUP above for the corresponding return values and branch indices
-        for i in xrange(3):
-            if vec1[i] <= vec2[i]:
-                result += (-4 / (i + 1) / 2)
-            else:
-                result += (4 / (i + 1) / 2)
-        result = DIRLOOKUP[str(result)]
-        return result
+        index = 0
+        if (position[0] >= root.position[0]):
+            index |= 4
+        if (position[1] >= root.position[1]):
+            index |= 2
+        if (position[2] >= root.position[2]):
+            index |= 1
+        return index
 
 ## ---------------------------------------------------------------------------------------------------##
 
@@ -202,13 +202,13 @@ class Octree(object):
 if __name__ == "__main__":
 
     ### Object Insertion Test ###
-    
+
     # So lets test the adding:
     import random
     import time
 
-    #Dummy object class to test with
     class TestObject(object):
+        """Dummy object class to test with"""
         def __init__(self, name, position):
             self.name = name
             self.position = position
