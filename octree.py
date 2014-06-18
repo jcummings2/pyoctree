@@ -23,21 +23,12 @@ Octree implementation
 
 from __future__ import print_function
 
-# TODO: Add support for multi-threading for node insertion and/or searching
-
-#### Global Variables ####
-
-# This defines the maximum objects an LeafNode can hold, before it gets subdivided again.
-MAX_OBJECTS_PER_CUBE = 10
-
-#### End Globals ####
-
 
 class OctNode(object):
     """
     New Octnode Class, can be appended to as well i think
     """
-    def __init__(self, position, size, data):
+    def __init__(self, position, size, depth, data):
         """
         OctNode Cubes have a position and size
         position is related to, but not the same as the objects the node contains.
@@ -51,6 +42,7 @@ class OctNode(object):
         """
         self.position = position
         self.size = size
+        self.depth = depth
 
         ## All OctNodes will be leaf nodes at first
         ## Then subdivided later as more objects get added
@@ -64,14 +56,14 @@ class OctNode(object):
 
         half = size / 2
 
-        ## The cube's bounding coordinates -- Not currently used
+        ## The cube's bounding coordinates
         self.lower = (position[0] - half, position[1] - half, position[2] - half)
         self.upper = (position[0] + half, position[1] + half, position[2] + half)
 
     def __str__(self):
         data_str = u", ".join((str(x) for x in self.data))
-        return u"position: {0}, size: {1}, leaf: {2}, data: {3}".format(
-            self.position, self.size, self.isLeafNode, data_str
+        return u"position: {0}, size: {1}, depth: {2} leaf: {3}, data: {4}".format(
+            self.position, self.size, self.depth, self.isLeafNode, data_str
         )
 
 
@@ -79,7 +71,7 @@ class Octree(object):
     """
     The octree itself, which is capable of adding and searching for nodes.
     """
-    def __init__(self, worldSize, origin=(0, 0, 0)):
+    def __init__(self, worldSize, origin=(0, 0, 0), max_type="nodes", max_value=10):
         """
         Init the world bounding root cube
         all world geometry is inside this
@@ -88,8 +80,10 @@ class Octree(object):
         if we insert more objects into it than MAX_OBJECTS_PER_CUBE, then it will subdivide itself.
 
         """
-        self.root = OctNode(origin, worldSize, [])
+        self.root = OctNode(origin, worldSize, 0, [])
         self.worldSize = worldSize
+        self.limit_nodes = (max_type=="nodes")
+        self.limit = max_value
 
     @staticmethod
     def CreateNode(position, size, objects):
@@ -146,7 +140,7 @@ class Octree(object):
             # we already know the size as supplied by the parent node
             # So create a new node at this position in the tree
             # print "Adding Node of size: " + str(size / 2) + " at " + str(newCenter)
-            return OctNode(newCenter, size, [objData])
+            return OctNode(newCenter, size, parent.depth + 1, [objData])
 
         #else: are we not at our position, but not at a leaf node either
         elif root.position != position and not root.isLeafNode:
@@ -164,11 +158,15 @@ class Octree(object):
             # some objects, at the moment, this has to be less objects than MAX_OBJECTS_PER_CUBE
             # otherwise this would not be a leafNode (elementary my dear watson).
             # if we add the node to this branch will we be over the limit?
-            if len(root.data) < MAX_OBJECTS_PER_CUBE:
+            if (
+                (self.limit_nodes and len(root.data) < self.limit)
+                or
+                (not self.limit_nodes and root.depth >= self.limit)
+            ):
                 # No? then Add to the Node's list of objects and we're done
                 root.data.append(objData)
                 #return root
-            elif len(root.data) == MAX_OBJECTS_PER_CUBE:
+            else:
                 # Adding this object to this leaf takes us over the limit
                 # So we have to subdivide the leaf and redistribute the objects
                 # on the new children.
@@ -296,6 +294,10 @@ if __name__ == "__main__":
     # print some results.
     print(NUM_TEST_OBJECTS, "Node Tree Generated in ", End, " Seconds")
     print("Tree centered at", ORIGIN, " with size", WORLD_SIZE)
+    if myTree.limit_nodes:
+        print("Tree Leaves contain a maximum of", myTree.limit, " objects each.")
+    else:
+        print("Tree has a maximum depth of", myTree.limit)
 
     print("Depth First")
     for i, x in enumerate(myTree.iterateDepthFirst()):
