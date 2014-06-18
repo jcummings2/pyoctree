@@ -21,6 +21,7 @@ Octree implementation
 # Then the cube has to subdivide itself, and arrange its objects in the new child nodes.
 # The new octNode itself contains no objects, but its children should.
 
+from __future__ import print_function
 
 # TODO: Add support for multi-threading for node insertion and/or searching
 
@@ -268,8 +269,8 @@ if __name__ == "__main__":
     End = time.time() - Start
 
     # print some results.
-    print str(NUM_TEST_OBJECTS) + "-Node Tree Generated in " + str(End) + " Seconds"
-    print "Tree Leaves contain a maximum of " + str(MAX_OBJECTS_PER_CUBE) + " objects each."
+    print(NUM_TEST_OBJECTS, "Node Tree Generated in ", End, " Seconds")
+    print("Tree centered at", ORIGIN, " with size", WORLD_SIZE)
 
     ### Lookup Tests ###
 
@@ -287,13 +288,13 @@ if __name__ == "__main__":
         # This proves that results are being returned - but may result in a large printout
         # I'd just comment it out and trust me :)
         if result is None:
-            print "No result for test at: ", the_pos
+            print("No result for test at: ", the_pos)
         else:
-            print "Results for test at: ", the_pos
+            print("Results for test at: ", the_pos)
             if result is not None:
                 for i in result:
-                    print "    ", i.name, i.position
-            print
+                    print("    ", i.name, i.position)
+            print()
         ##################################################################################
 
     End = time.time() - Start
