@@ -189,7 +189,7 @@ class Octree(object):
 
     def findPosition(self, position):
         """
-        Basic collision lookup that finds the leaf node containing the specified position
+        Basic lookup that finds the leaf node containing the specified position
         Returns the child objects of the leaf, or None if the leaf is empty or none
         """
         if position < self.root.lower:
@@ -267,8 +267,8 @@ if __name__ == "__main__":
     # Number of objects we intend to add.
     NUM_TEST_OBJECTS = 2000
 
-    # Number of collisions we're going to test
-    NUM_COLLISION_LOOKUPS = 2000
+    # Number of lookups we're going to test
+    NUM_LOOKUPS = 2000
 
     # Size that the octree covers
     WORLD_SIZE = 100.0
@@ -279,56 +279,89 @@ if __name__ == "__main__":
     # The range from which to draw random values
     RAND_RANGE = (-WORLD_SIZE * 0.3, WORLD_SIZE * 0.3)
 
-    # Create a new octree, size of world
-    myTree = Octree(WORLD_SIZE, ORIGIN)
-
-    # Insert some random objects and time it
-    Start = time.time()
+    # create random test objects
+    testObjects = []
     for x in range(NUM_TEST_OBJECTS):
         the_name = "Node__" + str(x)
-        the_pos = (ORIGIN[0] + random.randrange(*RAND_RANGE), ORIGIN[1] + random.randrange(*RAND_RANGE), ORIGIN[2] + random.randrange(*RAND_RANGE))
-        testOb = TestObject(the_name, the_pos)
-        myTree.insertNode(the_pos, testOb)
-    End = time.time() - Start
+        the_pos = (
+            ORIGIN[0] + random.randrange(*RAND_RANGE),
+            ORIGIN[1] + random.randrange(*RAND_RANGE),
+            ORIGIN[2] + random.randrange(*RAND_RANGE)
+        )
+        testObjects.append(TestObject(the_name, the_pos))
 
-    # print some results.
-    print(NUM_TEST_OBJECTS, "Node Tree Generated in ", End, " Seconds")
-    print("Tree centered at", ORIGIN, " with size", WORLD_SIZE)
-    if myTree.limit_nodes:
-        print("Tree Leaves contain a maximum of", myTree.limit, " objects each.")
-    else:
-        print("Tree has a maximum depth of", myTree.limit)
+    # create some random positions to find as well
+    findPositions = []
+    for x in range(NUM_LOOKUPS):
+        the_pos = (
+            ORIGIN[0] + random.randrange(*RAND_RANGE),
+            ORIGIN[1] + random.randrange(*RAND_RANGE),
+            ORIGIN[2] + random.randrange(*RAND_RANGE)
+        )
+        findPositions.append(the_pos)
 
-    print("Depth First")
-    for i, x in enumerate(myTree.iterateDepthFirst()):
-        print(i, ":", x)
+    test_trees = (
+        ("nodes", 10),
+        ("depth", 5)
+    )
 
-    ### Lookup Tests ###
+    for tree_params in test_trees:
 
-    # Looking up values outside the octree's value set should return None
-    result = myTree.findPosition((ORIGIN[0] + WORLD_SIZE * 1.1, ORIGIN[1] + WORLD_SIZE, ORIGIN[2] + WORLD_SIZE))
-    assert(result is None)
+        # Create a new octree, size of world
+        myTree = Octree(
+            WORLD_SIZE,
+            ORIGIN,
+            max_type=tree_params[0],
+            max_value=tree_params[1]
+        )
 
-    # Look up some random positions and time it
-    Start = time.time()
-    for x in range(NUM_COLLISION_LOOKUPS):
-        the_pos = (ORIGIN[0] + random.randrange(*RAND_RANGE), ORIGIN[1] + random.randrange(*RAND_RANGE), ORIGIN[2] + random.randrange(*RAND_RANGE))
-        result = myTree.findPosition(the_pos)
+        # Insert some random objects and time it
+        Start = time.time()
+        for testObject in testObjects:
+            myTree.insertNode(testObject.position, testObject)
+        End = time.time() - Start
 
-        ##################################################################################
-        # This proves that results are being returned - but may result in a large printout
-        # I'd just comment it out and trust me :)
-        if result is None:
-            print("No result for test at: ", the_pos)
+        # print some results.
+        print(NUM_TEST_OBJECTS, "Node Tree Generated in ", End, " Seconds")
+        print("Tree centered at", ORIGIN, " with size", WORLD_SIZE)
+        if myTree.limit_nodes:
+            print("Tree Leaves contain a maximum of", myTree.limit, " objects each.")
         else:
-            print("Results for test at: ", the_pos)
-            if result is not None:
-                for i in result:
-                    print("    ", i.name, i.position)
-            print()
-        ##################################################################################
+            print("Tree has a maximum depth of", myTree.limit)
 
-    End = time.time() - Start
+        print("Depth First")
+        for i, x in enumerate(myTree.iterateDepthFirst()):
+            print(i, ":", x)
 
-    # print some results.
-    print(str(NUM_COLLISION_LOOKUPS) + " Collision Lookups performed in " + str(End) + " Seconds")
+        ### Lookup Tests ###
+
+        # Looking up values outside the octree's value set should return None
+        result = myTree.findPosition((
+            ORIGIN[0] + WORLD_SIZE * 1.1,
+            ORIGIN[1] + WORLD_SIZE,
+            ORIGIN[2] + WORLD_SIZE
+        ))
+        assert(result is None)
+
+        # Look up some random positions and time it
+        Start = time.time()
+        for the_pos in findPositions:
+            result = myTree.findPosition(the_pos)
+
+            ##################################################################################
+            # This proves that results are being returned - but may result in a large printout
+            # I'd just comment it out and trust me :)
+            if result is None:
+                print("No result for test at: ", the_pos)
+            else:
+                print("Results for test at: ", the_pos)
+                if result is not None:
+                    for i in result:
+                        print("    ", i.name, i.position)
+                print()
+            ##################################################################################
+
+        End = time.time() - Start
+
+        # print some results.
+        print(str(NUM_LOOKUPS) + " Lookups performed in " + str(End) + " Seconds")
