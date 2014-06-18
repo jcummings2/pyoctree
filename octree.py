@@ -68,6 +68,13 @@ class OctNode(object):
         self.lower = (position[0] - half, position[1] - half, position[2] - half)
         self.upper = (position[0] + half, position[1] + half, position[2] + half)
 
+    def __str__(self):
+        data_str = u", ".join((str(x) for x in self.data))
+        return u"position: {0}, size: {1}, leaf: {2}, data: {3}".format(
+            self.position, self.size, self.isLeafNode, data_str
+        )
+
+
 class Octree(object):
     """
     The octree itself, which is capable of adding and searching for nodes.
@@ -221,6 +228,24 @@ class Octree(object):
             index |= 1
         return index
 
+    def iterateDepthFirst(self):
+        """Iterate through the octree depth-first"""
+        gen = self.__iterateDepthFirst(self.root)
+        for n in gen:
+            yield n
+
+    @staticmethod
+    def __iterateDepthFirst(root):
+        """Private (static) version of iterateDepthFirst"""
+
+        for branch in root.branches:
+            if branch is None:
+                continue
+            for n in Octree.__iterateDepthFirst(branch):
+                yield n
+            if branch.isLeafNode:
+                yield branch
+
 ## ---------------------------------------------------------------------------------------------------##
 
 
@@ -271,6 +296,10 @@ if __name__ == "__main__":
     # print some results.
     print(NUM_TEST_OBJECTS, "Node Tree Generated in ", End, " Seconds")
     print("Tree centered at", ORIGIN, " with size", WORLD_SIZE)
+
+    print("Depth First")
+    for i, x in enumerate(myTree.iterateDepthFirst()):
+        print(i, ":", x)
 
     ### Lookup Tests ###
 
