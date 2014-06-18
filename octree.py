@@ -71,23 +71,36 @@ class Octree(object):
     """
     The octree itself, which is capable of adding and searching for nodes.
     """
-    def __init__(self, worldSize):
+    def __init__(self, worldSize, origin=(0, 0, 0)):
         """
         Init the world bounding root cube
         all world geometry is inside this
         it will first be created as a leaf node (ie, without branches)
         this is because it has no objects, which is less than MAX_OBJECTS_PER_CUBE
         if we insert more objects into it than MAX_OBJECTS_PER_CUBE, then it will subdivide itself.
+
         """
-        self.root = self.addNode((0,0,0), worldSize, [])
+        self.root = OctNode(origin, worldSize, [])
         self.worldSize = worldSize
 
-    def addNode(self, position, size, objects):
+    @staticmethod
+    def CreateNode(position, size, objects):
         """This creates the actual OctNode itself."""
         return OctNode(position, size, objects)
 
-    def insertNode(self, root, size, parent, objData):
-        if root == None:
+    def insertNode(self, position, objData):
+        """
+        Add the given object to the octree if possible
+        """
+        if position < self.root.lower:
+            return None
+        if position > self.root.upper:
+            return None
+        return self.__insertNode(self.root, self.root.size, self.root, position, objData)
+
+    def __insertNode(self, root, size, parent, position, objData):
+        """Private version of insertNode() that is called recursively"""
+        if root is None:
             # we're inserting a single object, so if we reach an empty node, insert it here
             # Our new node will be a leaf with one object, our object
             # More may be added later, or the node maybe subdivided if too many are added
@@ -99,8 +112,8 @@ class Octree(object):
             offset = size / 2
 
             ## find out which direction we're heading in
-            branch = self.findBranch(parent, objData.position)
-            
+            branch = self.__findBranch(parent, position)
+
             ## new center = parent position + (branch direction * offset)
             newCenter = (0, 0, 0)
 
@@ -125,17 +138,18 @@ class Octree(object):
             # we already know the size as supplied by the parent node
             # So create a new node at this position in the tree
             # print "Adding Node of size: " + str(size / 2) + " at " + str(newCenter)
-            return self.addNode(newCenter, size, [objData])
-        
+            return OctNode(newCenter, size, [objData])
+
         #else: are we not at our position, but not at a leaf node either
-        elif root.position != objData.position and root.isLeafNode == False:
-            
+        elif root.position != position and not root.isLeafNode:
+
             # we're in an octNode still, we need to traverse further
-            branch = self.findBranch(root, objData.position)
+            branch = self.__findBranch(root, position)
             # Find the new scale we working with
             newSize = root.size / 2
             # Perform the same operation on the appropriate branch recursively
-            root.branches[branch] = self.insertNode(root.branches[branch], newSize, root, objData)
+            root.branches[branch] = self.__insertNode(root.branches[branch], newSize, root, position, objData)
+
         # else, is this node a leaf node with objects already in it?
         elif root.isLeafNode:
             # We've reached a leaf node. This has no branches yet, but does hold
@@ -163,25 +177,35 @@ class Octree(object):
                 # distribute the objects on the new tree
                 # print "Subdividing Node sized at: " + str(root.size) + " at " + str(root.position)
                 for ob in objList:
-                    branch = self.findBranch(root, ob.position)
-                    root.branches[branch] = self.insertNode(root.branches[branch], newSize, root, ob)
+                    branch = self.__findBranch(root, ob.position)
+                    root.branches[branch] = self.__insertNode(root.branches[branch], newSize, root, ob.position, ob)
         return root
 
-    def findPosition(self, root, position):
+    def findPosition(self, position):
         """
         Basic collision lookup that finds the leaf node containing the specified position
         Returns the child objects of the leaf, or None if the leaf is empty or none
         """
-        if root == None:
+        if position < self.root.lower:
             return None
-        elif root.isLeafNode:
-            return root.data
-        else:
-            branch = self.findBranch(root, position)
-            return self.findPosition(root.branches[branch], position)
-            
+        if position > self.root.upper:
+            return None
+        return self.__findPosition(self.root, position)
 
-    def findBranch(self, root, position):
+    @staticmethod
+    def __findPosition(node, position, count=0, branch=0):
+        """Private version of findPosition """
+        if node.isLeafNode:
+            #print("The position is", position, " data is", node.data)
+            return node.data
+        branch = Octree.__findBranch(node, position)
+        child = node.branches[branch]
+        if child is None:
+            return None
+        return Octree.__findPosition(child, position, count + 1, branch)
+
+    @staticmethod
+    def __findBranch(root, position):
         """
         helper function
         returns an index corresponding to a branch
@@ -213,8 +237,8 @@ if __name__ == "__main__":
             self.name = name
             self.position = position
 
-    # Create a new octree, size of world
-    myTree = Octree(15000.0000)
+        def __str__(self):
+            return u"name: {0} position: {1}".format(self.name, self.position)
 
     # Number of objects we intend to add.
     NUM_TEST_OBJECTS = 2000
@@ -222,16 +246,25 @@ if __name__ == "__main__":
     # Number of collisions we're going to test
     NUM_COLLISION_LOOKUPS = 2000
 
-    # The range of random values to add and test from
-    RANDOM_RANGE = (-4500.00, 4500.00)
+    # Size that the octree covers
+    WORLD_SIZE = 100.0
+
+    #ORIGIN = (WORLD_SIZE, WORLD_SIZE, WORLD_SIZE)
+    ORIGIN = (0, 0, 0)
+
+    # The range from which to draw random values
+    RAND_RANGE = (-WORLD_SIZE * 0.3, WORLD_SIZE * 0.3)
+
+    # Create a new octree, size of world
+    myTree = Octree(WORLD_SIZE, ORIGIN)
 
     # Insert some random objects and time it
     Start = time.time()
-    for x in xrange(NUM_TEST_OBJECTS):
-        name = "Node__" + str(x)
-        pos = (random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE))
-        testOb = TestObject(name, pos)
-        myTree.insertNode(myTree.root, 15000.000, myTree.root, testOb)
+    for x in range(NUM_TEST_OBJECTS):
+        the_name = "Node__" + str(x)
+        the_pos = (ORIGIN[0] + random.randrange(*RAND_RANGE), ORIGIN[1] + random.randrange(*RAND_RANGE), ORIGIN[2] + random.randrange(*RAND_RANGE))
+        testOb = TestObject(the_name, the_pos)
+        myTree.insertNode(the_pos, testOb)
     End = time.time() - Start
 
     # print some results.
@@ -240,26 +273,30 @@ if __name__ == "__main__":
 
     ### Lookup Tests ###
 
+    # Looking up values outside the octree's value set should return None
+    result = myTree.findPosition((ORIGIN[0] + WORLD_SIZE * 1.1, ORIGIN[1] + WORLD_SIZE, ORIGIN[2] + WORLD_SIZE))
+    assert(result is None)
+
     # Look up some random positions and time it
     Start = time.time()
-    for x in xrange(NUM_COLLISION_LOOKUPS):
-        pos = (random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE), random.randrange(*RANDOM_RANGE))
-        result = myTree.findPosition(myTree.root, pos)
-        
+    for x in range(NUM_COLLISION_LOOKUPS):
+        the_pos = (ORIGIN[0] + random.randrange(*RAND_RANGE), ORIGIN[1] + random.randrange(*RAND_RANGE), ORIGIN[2] + random.randrange(*RAND_RANGE))
+        result = myTree.findPosition(the_pos)
+
         ##################################################################################
         # This proves that results are being returned - but may result in a large printout
         # I'd just comment it out and trust me :)
-        print "Results for test at: " + str(pos)
-        if result != None:
-            for i in result:
-                print i.name, i.position,
-        print
+        if result is None:
+            print "No result for test at: ", the_pos
+        else:
+            print "Results for test at: ", the_pos
+            if result is not None:
+                for i in result:
+                    print "    ", i.name, i.position
+            print
         ##################################################################################
-        
+
     End = time.time() - Start
 
     # print some results.
-    print str(NUM_COLLISION_LOOKUPS) + " Collision Lookups performed in " + str(End) + " Seconds"
-    print "Tree Leaves contain a maximum of " + str(MAX_OBJECTS_PER_CUBE) + " objects each."
-
-    #x = raw_input("Press any key (Wheres the any key?):")
+    print(str(NUM_COLLISION_LOOKUPS) + " Collision Lookups performed in " + str(End) + " Seconds")
