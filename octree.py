@@ -322,10 +322,10 @@ if __name__ == "__main__":
         End = time.time() - Start
 
         # print some results.
-        print(NUM_TEST_OBJECTS, "Node Tree Generated in ", End, " Seconds")
-        print("Tree centered at", ORIGIN, " with size", WORLD_SIZE)
+        print(NUM_TEST_OBJECTS, "Node Tree Generated in", End, "Seconds")
+        print("Tree centered at", ORIGIN, "with size", WORLD_SIZE)
         if myTree.limit_nodes:
-            print("Tree Leaves contain a maximum of", myTree.limit, " objects each.")
+            print("Tree Leaves contain a maximum of", myTree.limit, "objects each.")
         else:
             print("Tree has a maximum depth of", myTree.limit)
 
@@ -352,9 +352,9 @@ if __name__ == "__main__":
             # This proves that results are being returned - but may result in a large printout
             # I'd just comment it out and trust me :)
             if result is None:
-                print("No result for test at: ", the_pos)
+                print("No result for test at:", the_pos)
             else:
-                print("Results for test at: ", the_pos)
+                print("Results for test at:", the_pos)
                 if result is not None:
                     for i in result:
                         print("    ", i.name, i.position)
@@ -364,4 +364,4 @@ if __name__ == "__main__":
         End = time.time() - Start
 
         # print some results.
-        print(str(NUM_LOOKUPS) + " Lookups performed in " + str(End) + " Seconds")
+        print(str(NUM_LOOKUPS), "Lookups performed in", End, "Seconds")
