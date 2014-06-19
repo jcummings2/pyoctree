@@ -90,14 +90,33 @@ class Octree(object):
         """This creates the actual OctNode itself."""
         return OctNode(position, size, objects)
 
-    def insertNode(self, position, objData):
+    def insertNode(self, position, objData=None):
         """
         Add the given object to the octree if possible
+
+        Parameters
+        ----------
+        position : array_like with 3 elements
+            The spatial location for the object
+        objData : optional
+            The data to store at this position. By default stores the position.
+
+            If the object does not have a position attribute, the object
+            itself is assumed to be the position.
+
+        Returns
+        -------
+        node : OctNode or None
+            The node in which the data is stored or None if outside the
+            octree's boundary volume.
+
         """
         if position < self.root.lower:
             return None
         if position > self.root.upper:
             return None
+        if objData is None:
+            objData = position
         return self.__insertNode(self.root, self.root.size, self.root, position, objData)
 
     def __insertNode(self, root, size, parent, position, objData):
@@ -183,8 +202,13 @@ class Octree(object):
                 # distribute the objects on the new tree
                 # print "Subdividing Node sized at: " + str(root.size) + " at " + str(root.position)
                 for ob in objList:
-                    branch = self.__findBranch(root, ob.position)
-                    root.branches[branch] = self.__insertNode(root.branches[branch], newSize, root, ob.position, ob)
+                    # Use the position attribute of the object if possible
+                    if hasattr(ob, "position"):
+                        pos = ob.position
+                    else:
+                        pos = ob
+                    branch = self.__findBranch(root, pos)
+                    root.branches[branch] = self.__insertNode(root.branches[branch], newSize, root, pos, ob)
         return root
 
     def findPosition(self, position):
