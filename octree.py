@@ -23,6 +23,11 @@ Octree implementation
 
 from __future__ import print_function
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 
 class OctNode(object):
     """
@@ -111,12 +116,20 @@ class Octree(object):
             octree's boundary volume.
 
         """
-        if position < self.root.lower:
-            return None
-        if position > self.root.upper:
-            return None
+        if np:
+            if np.any(position < self.root.lower):
+                return None
+            if np.any(position > self.root.upper):
+                return None
+        else:
+            if position < self.root.lower:
+                return None
+            if position > self.root.upper:
+                return None
+
         if objData is None:
             objData = position
+
         return self.__insertNode(self.root, self.root.size, self.root, position, objData)
 
     def __insertNode(self, root, size, parent, position, objData):
@@ -162,7 +175,15 @@ class Octree(object):
             return OctNode(newCenter, size, parent.depth + 1, [objData])
 
         #else: are we not at our position, but not at a leaf node either
-        elif root.position != position and not root.isLeafNode:
+        elif (
+            not root.isLeafNode
+            and
+            (
+                (np and np.any(root.position != position))
+                or
+                (root.position != position)
+            )
+        ):
 
             # we're in an octNode still, we need to traverse further
             branch = self.__findBranch(root, position)
@@ -216,10 +237,16 @@ class Octree(object):
         Basic lookup that finds the leaf node containing the specified position
         Returns the child objects of the leaf, or None if the leaf is empty or none
         """
-        if position < self.root.lower:
-            return None
-        if position > self.root.upper:
-            return None
+        if np:
+            if np.any(position < self.root.lower):
+                return None
+            if np.any(position > self.root.upper):
+                return None
+        else:
+            if position < self.root.lower:
+                return None
+            if position > self.root.upper:
+                return None
         return self.__findPosition(self.root, position)
 
     @staticmethod
